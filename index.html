@@ -1079,15 +1079,17 @@ function initPresence(){
     const ref=db.collection('presence').doc(sessionId);
     const TS=firebase.firestore.FieldValue.serverTimestamp;
 
-    ref.set({lastSeen:TS()});
+    ref.set({lastSeen:TS(),joinedAt:Date.now()});
 
     const heartbeat=setInterval(()=>ref.update({lastSeen:TS()}),25000);
 
-    db.collection('presence').onSnapshot(snap=>{
-      const cutoff=Date.now()-60000;
+    db.collection('presence').onSnapshot({includeMetadataChanges:false},snap=>{
+      const cutoff=Date.now()-90000;
       const active=snap.docs.filter(d=>{
-        const t=d.data().lastSeen;
-        return t&&t.toMillis()>cutoff;
+        const data=d.data();
+        const t=data.lastSeen;
+        if(!t) return (Date.now()-( data.joinedAt||0))<90000;
+        return t.toMillis()>cutoff;
       }).length;
       document.getElementById('onlineCount').textContent=active;
       document.getElementById('onlineDot').className='online-dot';
