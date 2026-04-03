@@ -1073,25 +1073,27 @@ document.addEventListener('keydown',e=>{
 function initPresence(){
   try{
     if(FIREBASE_CONFIG.apiKey.startsWith('REPLACE')) return;
-    firebase.initializeApp(FIREBASE_CONFIG);
+    const app=firebase.apps.length?firebase.app():firebase.initializeApp(FIREBASE_CONFIG);
     const db=firebase.firestore();
+    const col=db.collection('presence');
     const sessionId=Math.random().toString(36).slice(2)+Date.now();
-    const ref=db.collection('presence').doc(sessionId);
+    const ref=col.doc(sessionId);
     const TS=firebase.firestore.FieldValue.serverTimestamp;
 
-    ref.set({lastSeen:TS(),joinedAt:Date.now()});
+    col.get().then(snap=>{
+      const stale=Date.now()-120000;
+      snap.docs.forEach(d=>{
+        const t=d.data().lastSeen;
+        if(t&&t.toMillis()<stale) d.ref.delete();
+      });
+    });
 
-    const heartbeat=setInterval(()=>ref.update({lastSeen:TS()}),25000);
+    ref.set({lastSeen:TS()});
 
-    db.collection('presence').onSnapshot({includeMetadataChanges:false},snap=>{
-      const cutoff=Date.now()-90000;
-      const active=snap.docs.filter(d=>{
-        const data=d.data();
-        const t=data.lastSeen;
-        if(!t) return (Date.now()-( data.joinedAt||0))<90000;
-        return t.toMillis()>cutoff;
-      }).length;
-      document.getElementById('onlineCount').textContent=active;
+    const heartbeat=setInterval(()=>ref.update({lastSeen:TS()}),30000);
+
+    col.onSnapshot(snap=>{
+      document.getElementById('onlineCount').textContent=snap.size;
       document.getElementById('onlineDot').className='online-dot';
     });
 
