@@ -1080,22 +1080,20 @@ function initPresence(){
     const ref=col.doc(sessionId);
     const TS=firebase.firestore.FieldValue.serverTimestamp;
 
-    col.get().then(snap=>{
-      const stale=Date.now()-120000;
-      snap.docs.forEach(d=>{
-        const t=d.data().lastSeen;
-        if(t&&t.toMillis()<stale) d.ref.delete();
-      });
-    });
-
-    ref.set({lastSeen:TS()});
+    ref.set({lastSeen:TS()})
+      .then(()=>console.log('[presence] session registered:',sessionId))
+      .catch(e=>console.error('[presence] write failed:',e.message));
 
     const heartbeat=setInterval(()=>ref.update({lastSeen:TS()}),30000);
 
-    col.onSnapshot(snap=>{
-      document.getElementById('onlineCount').textContent=snap.size;
-      document.getElementById('onlineDot').className='online-dot';
-    });
+    col.onSnapshot(
+      snap=>{
+        console.log('[presence] count:',snap.size, snap.docs.map(d=>d.id));
+        document.getElementById('onlineCount').textContent=snap.size;
+        document.getElementById('onlineDot').className='online-dot';
+      },
+      err=>console.error('[presence] snapshot failed:',err.message)
+    );
 
     document.addEventListener('visibilitychange',()=>{
       if(document.visibilityState==='visible') ref.update({lastSeen:TS()});
