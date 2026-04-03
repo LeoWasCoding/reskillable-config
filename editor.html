@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Reskillable Config Editor</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overscroll-behavior:none}
+:root{
+  --bg:#0a0a0a;--surface:#141414;--surface2:#1e1e1e;--border:#333;
+  --text:#f0ede8;--muted:#888;--accent:#d4a017;--accent-light:#f0b429;--danger:#e05252;--success:#4caf50;
+  --mining:#cd7f32;--gathering:#57ab5a;--farming:#c69026;--building:#6e7681;
+  --attack:#e05252;--defense:#388bfd;--agility:#39c5cf;--magic:#bc8cff;--trading:#d4a017;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+*{scrollbar-width:thin;scrollbar-color:var(--accent) var(--surface2)}
+*::-webkit-scrollbar{width:7px;height:7px}
+*::-webkit-scrollbar-track{background:var(--surface2)}
+*::-webkit-scrollbar-thumb{background:var(--accent)}
+*::-webkit-scrollbar-thumb:hover{background:var(--accent-light)}
+*::-webkit-scrollbar-corner{background:var(--surface2)}
+
+.header{background:var(--surface);border-bottom:2px solid var(--accent);padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;position:sticky;top:0;z-index:200}
+.header-title{font-size:17px;font-weight:700;flex:1;min-width:160px;white-space:nowrap}
+.header-actions{display:flex;gap:6px;flex-wrap:wrap}
+
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:13px;font-family:inherit;transition:background .15s,opacity .15s;white-space:nowrap;text-decoration:none}
+.btn:hover{background:var(--border)}
+.btn-primary{background:var(--accent);color:#000;border-color:transparent;font-weight:600}
+.btn-primary:hover{background:var(--accent-light)}
+.btn-danger{background:var(--danger);color:#fff;border-color:transparent}
+.btn-danger:hover{opacity:.85}
+.btn-success{background:var(--success);color:#000;border-color:transparent}
+.btn-sm{padding:3px 9px;font-size:12px}
+.btn-xs{padding:2px 6px;font-size:11px}
+
+.tabs-wrapper{background:var(--surface);border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.tabs-wrapper::-webkit-scrollbar{display:none}
+.tabs{display:flex;min-width:max-content;padding:0 12px}
+.tab{padding:10px 14px;cursor:pointer;border-bottom:2px solid transparent;font-size:13px;font-weight:500;color:var(--muted);white-space:nowrap;transition:color .15s,border-color .15s;display:flex;align-items:center;gap:5px;user-select:none}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+.content{padding:14px;max-width:1100px;margin:0 auto}
+
+.section{background:var(--surface);border:1px solid var(--border);margin-bottom:14px;overflow:hidden}
+.section-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface2);border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px}
+.section-title{font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px}
+.badge{display:inline-block;padding:2px 8px;font-size:11px;font-weight:600;background:var(--bg);border:1px solid var(--border);text-transform:uppercase;letter-spacing:.3px}
+.entry-count{font-size:11px;color:var(--muted);font-weight:normal}
+
+.table-wrapper{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{padding:7px 12px;text-align:left;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);border-bottom:1px solid var(--border);background:var(--surface2);white-space:nowrap}
+td{padding:7px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(212,160,23,.04)}
+.empty-row td{text-align:center;color:var(--muted);font-size:12px;padding:20px}
+
+.id-cell{font-family:'Consolas','SF Mono',monospace;font-size:12px}
+.ns{color:var(--muted)}
+
+.skill-pill{display:inline-flex;align-items:center;padding:2px 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+.s-mining{background:rgba(205,127,50,.18);color:var(--mining)}
+.s-gathering{background:rgba(87,171,90,.18);color:var(--gathering)}
+.s-farming{background:rgba(198,144,38,.18);color:var(--farming)}
+.s-building{background:rgba(110,118,129,.18);color:var(--building)}
+.s-attack{background:rgba(248,81,73,.18);color:var(--attack)}
+.s-defense{background:rgba(56,139,253,.18);color:var(--defense)}
+.s-agility{background:rgba(57,197,207,.18);color:var(--agility)}
+.s-magic{background:rgba(188,140,255,.18);color:var(--magic)}
+.s-trading{background:rgba(227,179,65,.18);color:var(--trading)}
+
+.lvl{font-weight:700;font-size:13px}
+.ms{font-size:10px;color:var(--muted);margin-left:3px}
+
+.cond-list{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.cond-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;font-size:11px;border:1px solid var(--border);background:var(--bg)}
+.cond-sep{font-size:10px;color:var(--muted);font-weight:700}
+
+.add-group-row{padding:10px 14px;border-top:1px solid var(--border)}
+
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:500;align-items:center;justify-content:center;padding:16px}
+.modal-overlay.show{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);width:100%;max-width:520px;max-height:90vh;overflow-y:auto;display:flex;flex-direction:column}
+.modal-header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-weight:600;font-size:15px;position:sticky;top:0;background:var(--surface);z-index:1}
+.modal-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:2px 6px;line-height:1}
+.modal-close:hover{color:var(--text);background:var(--border)}
+.modal-body{padding:16px;display:flex;flex-direction:column;gap:14px}
+.modal-footer{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;position:sticky;bottom:0;background:var(--surface)}
+
+.form-group{display:flex;flex-direction:column;gap:5px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+label{font-size:12px;font-weight:600;color:var(--muted)}
+.field-hint{font-size:11px;color:var(--muted);font-weight:normal;margin-left:4px}
+input[type=text],input[type=number],select,textarea{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:7px 10px;font-size:13px;font-family:inherit;width:100%;transition:border-color .15s}
+input[type=text]:focus,input[type=number]:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
+input[type=number]{-moz-appearance:textfield}
+input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
+.level-row{display:grid;grid-template-columns:80px 1fr;gap:8px;align-items:center}
+
+.cond-editor-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 8px;background:var(--bg);border:1px solid var(--border);margin-bottom:6px}
+.cond-editor-row .and-badge{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;min-width:28px}
+.cond-editor-row select{flex:0 0 130px}
+.cond-editor-row input[type=number]{flex:0 0 70px;width:70px}
+
+.toast{position:fixed;bottom:20px;right:20px;background:var(--surface2);border:1px solid var(--border);padding:10px 14px;font-size:13px;z-index:1000;animation:fadeUp .2s ease;max-width:280px;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+.toast.success{border-color:var(--success);color:var(--success)}
+.toast.error{border-color:var(--danger);color:var(--danger)}
+@keyframes fadeUp{from{transform:translateY(8px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+.lock-type-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.lock-type-option{padding:10px 12px;border:2px solid var(--border);cursor:pointer;font-size:12px;font-weight:600;transition:border-color .15s,background .15s;text-align:center}
+.lock-type-option:hover{border-color:var(--accent);background:rgba(212,160,23,.08)}
+.lock-type-option.selected{border-color:var(--accent);background:rgba(212,160,23,.15);color:var(--accent)}
+.lock-type-option small{display:block;font-weight:400;color:var(--muted);font-size:11px;margin-top:3px}
+
+@media(max-width:560px){
+  .form-row{grid-template-columns:1fr}
+  .level-row{grid-template-columns:70px 1fr}
+  .lock-type-grid{grid-template-columns:1fr}
+  th,td{padding:6px 8px}
+  .header-title{font-size:14px}
+  .tabs .tab{padding:9px 10px;font-size:12px}
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-title"><i class="bi bi-gear-fill"></i> Reskillable Config Editor</div>
+  <div class="header-actions">
+    <button class="btn" onclick="loadDefault()"><i class="bi bi-arrow-counterclockwise"></i> Default</button>
+    <label for="fileInput" class="btn" style="cursor:pointer"><i class="bi bi-upload"></i> Upload JS</label>
+    <input type="file" id="fileInput" accept=".js" style="display:none" onchange="handleFileUpload(event)">
+    <button class="btn btn-primary" onclick="exportJS()"><i class="bi bi-download"></i> Export JS</button>
+  </div>
+</header>
+
+<div class="tabs-wrapper"><div class="tabs" id="tabsBar"></div></div>
+
+<main class="content" id="mainContent"></main>
+
+<div class="modal-overlay" id="entryModal" onclick="if(event.target===this)closeEntryModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <span id="entryModalTitle">Edit Entry</span>
+      <button class="modal-close" onclick="closeEntryModal()"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="modal-body" id="entryModalBody"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeEntryModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEntryModal()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="groupModal" onclick="if(event.target===this)closeGroupModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <span>Add Lock Group</span>
+      <button class="modal-close" onclick="closeGroupModal()"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Lock Type</label>
+        <div class="lock-type-grid" id="lockTypeGrid">
+          <div class="lock-type-option selected" data-type="item" onclick="selectLockType('item')">
+            Item Lock <small>Require skill to use/hold item</small>
+          </div>
+          <div class="lock-type-option" data-type="blockBreak" onclick="selectLockType('blockBreak')">
+            Block Break Lock <small>Require skill to break block</small>
+          </div>
+          <div class="lock-type-option" data-type="blockPlace" onclick="selectLockType('blockPlace')">
+            Block Place Lock <small>Require skill to place block</small>
+          </div>
+          <div class="lock-type-option" data-type="entity" onclick="selectLockType('entity')">
+            Entity Lock <small>Require skill to interact with entity</small>
+          </div>
+          <div class="lock-type-option" data-type="advancedItem" onclick="selectLockType('advancedItem')">
+            Advanced Item Lock <small>Multi-skill requirements (AND)</small>
+          </div>
+        </div>
+      </div>
+      <div class="form-group" id="groupCatField">
+        <label>Category <span class="field-hint">(e.g. tools, armor, weapons, other, magic, shield)</span></label>
+        <input type="text" id="groupCatInput" placeholder="tools">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeGroupModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmAddGroup()">Add Group</button>
+    </div>
+  </div>
+</div>
+
+<script>
+
+const SKILLS = ['mining','gathering','farming','building','attack','defense','agility','magic'];
+const MILESTONES = {1:'STARTER',4:'NOVICE',6:'APPRENTICE',9:'JOURNEYMAN',11:'ADEPT',16:'SPECIALIST',20:'EXPERT',24:'MASTER',28:'GRANDMASTER',32:'LEGEND'};
+const SKILL_ICONS = {
+  mining:'<i class="bi bi-hammer"></i>',
+  gathering:'<i class="bi bi-tree-fill"></i>',
+  farming:'<i class="bi bi-flower1"></i>',
+  building:'<i class="bi bi-bricks"></i>',
+  attack:'<i class="bi bi-lightning-fill"></i>',
+  defense:'<i class="bi bi-shield-fill"></i>',
+  agility:'<i class="bi bi-wind"></i>',
+  magic:'<i class="bi bi-stars"></i>',
+  trading:'<i class="bi bi-shop"></i>',
+};
+const SECTIONS = [
+  {id:'mining',name:'Mining'},{id:'gathering',name:'Gathering'},{id:'farming',name:'Farming'},
+  {id:'building',name:'Building'},{id:'attack',name:'Attack'},{id:'defense',name:'Defense'},
+  {id:'agility',name:'Agility'},{id:'magic',name:'Magic'},{id:'trading',name:'Trading'},
+];
+const LOCK_LABELS = {item:'Item Locks',blockBreak:'Block Break Locks',blockPlace:'Block Place Locks',entity:'Entity Locks',advancedItem:'Advanced Item Locks'};
+const LOCK_ID_LABEL = {item:'Item ID',blockBreak:'Block ID',blockPlace:'Block ID',entity:'Entity ID',advancedItem:'Item ID'};
+
+const DEFAULT_DATA = {
+  trading:[{id:'trading_entity',lockType:'entity',entries:[
+    {id:'minecraft:piglin',skillId:'building',level:16},
+    {id:'minecraft:villager',skillId:'building',level:14},
+    {id:'minecraft:villager_v2',skillId:'building',level:14},
+    {id:'minecraft:wandering_trader',skillId:'building',level:16},
+    {id:'minecraft:wandering_trader_v2',skillId:'building',level:16},
+  ]}],
+  mining:[
+    {id:'mining_items',lockType:'item',category:'tools',entries:[
+      {id:'minecraft:wooden_pickaxe',skillId:'mining',level:1},
+      {id:'minecraft:stone_pickaxe',skillId:'mining',level:4},
+      {id:'minecraft:copper_pickaxe',skillId:'mining',level:6},
+      {id:'minecraft:iron_pickaxe',skillId:'mining',level:9},
+      {id:'minecraft:golden_pickaxe',skillId:'mining',level:11},
+      {id:'minecraft:diamond_pickaxe',skillId:'mining',level:20},
+      {id:'minecraft:netherite_pickaxe',skillId:'mining',level:28},
+    ]},
+    {id:'mining_blocks',lockType:'blockBreak',entries:[
+      {id:'minecraft:copper_ore',skillId:'mining',level:6},
+      {id:'minecraft:deepslate_copper_ore',skillId:'mining',level:6},
+      {id:'minecraft:deepslate_iron_ore',skillId:'mining',level:6},
+      {id:'minecraft:iron_ore',skillId:'mining',level:6},
+      {id:'minecraft:gold_ore',skillId:'mining',level:10},
+      {id:'minecraft:deepslate_gold_ore',skillId:'mining',level:10},
+      {id:'minecraft:nether_gold_ore',skillId:'mining',level:10},
+      {id:'minecraft:deepslate_lapis_ore',skillId:'mining',level:12},
+      {id:'minecraft:deepslate_redstone_ore',skillId:'mining',level:12},
+      {id:'minecraft:lapis_ore',skillId:'mining',level:12},
+      {id:'minecraft:redstone_ore',skillId:'mining',level:12},
+      {id:'minecraft:emerald_ore',skillId:'mining',level:18},
+      {id:'minecraft:deepslate_emerald_ore',skillId:'mining',level:18},
+      {id:'minecraft:obsidian',skillId:'mining',level:20},
+      {id:'minecraft:deepslate_diamond_ore',skillId:'mining',level:20},
+      {id:'minecraft:diamond_ore',skillId:'mining',level:20},
+      {id:'minecraft:ancient_debris',skillId:'mining',level:26},
+    ]},
+  ],
+  gathering:[
+    {id:'gathering_items',lockType:'item',category:'tools',entries:[
+      {id:'minecraft:fishing_rod',skillId:'gathering',level:1},
+      {id:'minecraft:wooden_axe',skillId:'gathering',level:1},
+      {id:'minecraft:wooden_shovel',skillId:'gathering',level:1},
+      {id:'minecraft:stone_axe',skillId:'gathering',level:4},
+      {id:'minecraft:stone_shovel',skillId:'gathering',level:4},
+      {id:'minecraft:shears',skillId:'gathering',level:5},
+      {id:'minecraft:copper_axe',skillId:'gathering',level:6},
+      {id:'minecraft:copper_shovel',skillId:'gathering',level:6},
+      {id:'minecraft:iron_axe',skillId:'gathering',level:9},
+      {id:'minecraft:iron_shovel',skillId:'gathering',level:9},
+      {id:'minecraft:golden_axe',skillId:'gathering',level:11},
+      {id:'minecraft:golden_shovel',skillId:'gathering',level:11},
+      {id:'minecraft:brush',skillId:'gathering',level:20},
+      {id:'minecraft:diamond_axe',skillId:'gathering',level:20},
+      {id:'minecraft:diamond_shovel',skillId:'gathering',level:20},
+    ]},
+    {id:'gathering_adv',lockType:'advancedItem',category:'tools',entries:[
+      {id:'minecraft:netherite_axe',conditions:[{skillId:'gathering',level:28},{skillId:'mining',level:24}]},
+      {id:'minecraft:netherite_shovel',conditions:[{skillId:'gathering',level:28},{skillId:'mining',level:24}]},
+    ]},
+  ],
+  farming:[
+    {id:'farming_items',lockType:'item',category:'tools',entries:[
+      {id:'minecraft:wooden_hoe',skillId:'farming',level:1},
+      {id:'minecraft:stone_hoe',skillId:'farming',level:4},
+      {id:'minecraft:copper_hoe',skillId:'farming',level:6},
+      {id:'minecraft:iron_hoe',skillId:'farming',level:9},
+      {id:'minecraft:golden_hoe',skillId:'farming',level:11},
+      {id:'minecraft:diamond_hoe',skillId:'farming',level:20},
+    ]},
+    {id:'farming_adv',lockType:'advancedItem',category:'tools',entries:[
+      {id:'minecraft:netherite_hoe',conditions:[{skillId:'farming',level:28},{skillId:'mining',level:24}]},
+    ]},
+  ],
+  building:[
+    {id:'building_bp',lockType:'blockPlace',entries:[
+      {id:'minecraft:iron_block',skillId:'building',level:10},
+      {id:'minecraft:gold_block',skillId:'building',level:16},
+      {id:'minecraft:obsidian',skillId:'building',level:16},
+      {id:'minecraft:crying_obsidian',skillId:'building',level:18},
+      {id:'minecraft:diamond_block',skillId:'building',level:20},
+      {id:'minecraft:netherite_block',skillId:'building',level:28},
+    ]},
+    {id:'building_items',lockType:'item',category:'other',entries:[
+      {id:'minecraft:furnace',skillId:'building',level:6},
+      {id:'minecraft:loom',skillId:'building',level:8},
+      {id:'minecraft:note_block',skillId:'building',level:8},
+      {id:'minecraft:smoker',skillId:'building',level:8},
+      {id:'minecraft:stonecutter',skillId:'building',level:8},
+      {id:'minecraft:blast_furnace',skillId:'building',level:10},
+      {id:'minecraft:bee_nest',skillId:'building',level:10},
+      {id:'minecraft:beehive',skillId:'building',level:10},
+      {id:'minecraft:cartography_table',skillId:'building',level:10},
+      {id:'minecraft:composter',skillId:'building',level:10},
+      {id:'minecraft:fletching_table',skillId:'building',level:10},
+      {id:'minecraft:grindstone',skillId:'building',level:12},
+      {id:'minecraft:jukebox',skillId:'building',level:12},
+      {id:'minecraft:lectern',skillId:'building',level:12},
+      {id:'minecraft:dispenser',skillId:'building',level:14},
+      {id:'minecraft:dropper',skillId:'building',level:14},
+      {id:'minecraft:piston',skillId:'building',level:14},
+      {id:'minecraft:fire_charge',skillId:'building',level:16},
+      {id:'minecraft:flint_and_steel',skillId:'building',level:16},
+      {id:'minecraft:hopper',skillId:'building',level:16},
+      {id:'minecraft:powered_repeater',skillId:'building',level:16},
+      {id:'minecraft:sticky_piston',skillId:'building',level:16},
+      {id:'minecraft:unpowered_repeater',skillId:'building',level:16},
+      {id:'minecraft:crafter',skillId:'building',level:18},
+      {id:'minecraft:daylight_detector',skillId:'building',level:18},
+      {id:'minecraft:observer',skillId:'building',level:18},
+      {id:'minecraft:powered_comparator',skillId:'building',level:18},
+      {id:'minecraft:unpowered_comparator',skillId:'building',level:18},
+      {id:'minecraft:anvil',skillId:'building',level:20},
+      {id:'minecraft:chipped_anvil',skillId:'building',level:20},
+      {id:'minecraft:damaged_anvil',skillId:'building',level:20},
+      {id:'minecraft:smithing_table',skillId:'building',level:20},
+    ]},
+  ],
+  attack:[
+    {id:'attack_adv',lockType:'advancedItem',category:'weapons',entries:[
+      {id:'minecraft:wooden_sword',conditions:[{skillId:'attack',level:1},{skillId:'agility',level:1}]},
+      {id:'minecraft:bow',conditions:[{skillId:'attack',level:4},{skillId:'agility',level:2}]},
+      {id:'minecraft:stone_sword',conditions:[{skillId:'attack',level:4},{skillId:'agility',level:3}]},
+      {id:'minecraft:copper_sword',conditions:[{skillId:'attack',level:6},{skillId:'agility',level:5}]},
+      {id:'minecraft:iron_sword',conditions:[{skillId:'attack',level:9},{skillId:'agility',level:7}]},
+      {id:'minecraft:golden_sword',conditions:[{skillId:'attack',level:11},{skillId:'agility',level:8}]},
+      {id:'minecraft:crossbow',conditions:[{skillId:'attack',level:16},{skillId:'agility',level:10}]},
+      {id:'minecraft:diamond_sword',conditions:[{skillId:'attack',level:20},{skillId:'agility',level:12}]},
+      {id:'minecraft:wind_charge',conditions:[{skillId:'attack',level:20},{skillId:'agility',level:18}]},
+      {id:'minecraft:trident',conditions:[{skillId:'attack',level:20},{skillId:'agility',level:16}]},
+      {id:'minecraft:wooden_spear',conditions:[{skillId:'attack',level:1},{skillId:'agility',level:1}]},
+      {id:'minecraft:stone_spear',conditions:[{skillId:'attack',level:4},{skillId:'agility',level:4}]},
+      {id:'minecraft:copper_spear',conditions:[{skillId:'attack',level:6},{skillId:'agility',level:6}]},
+      {id:'minecraft:iron_spear',conditions:[{skillId:'attack',level:9},{skillId:'agility',level:8}]},
+      {id:'minecraft:golden_spear',conditions:[{skillId:'attack',level:11},{skillId:'agility',level:10}]},
+      {id:'minecraft:diamond_spear',conditions:[{skillId:'attack',level:20},{skillId:'agility',level:16}]},
+      {id:'minecraft:netherite_spear',conditions:[{skillId:'attack',level:28},{skillId:'agility',level:22}]},
+      {id:'minecraft:mace',conditions:[{skillId:'attack',level:32},{skillId:'mining',level:24}]},
+      {id:'minecraft:netherite_sword',conditions:[{skillId:'attack',level:28},{skillId:'agility',level:20}]},
+    ]},
+  ],
+  defense:[
+    {id:'defense_leather',lockType:'item',category:'armor',entries:[
+      {id:'minecraft:leather_boots',skillId:'defense',level:1},
+      {id:'minecraft:leather_leggings',skillId:'defense',level:1},
+      {id:'minecraft:leather_chestplate',skillId:'defense',level:1},
+      {id:'minecraft:leather_helmet',skillId:'defense',level:1},
+    ]},
+    {id:'defense_adv_armor',lockType:'advancedItem',category:'armor',entries:[
+      {id:'minecraft:chainmail_boots',conditions:[{skillId:'defense',level:4},{skillId:'agility',level:2}]},
+      {id:'minecraft:chainmail_leggings',conditions:[{skillId:'defense',level:4},{skillId:'agility',level:2}]},
+      {id:'minecraft:chainmail_chestplate',conditions:[{skillId:'defense',level:4},{skillId:'agility',level:2}]},
+      {id:'minecraft:chainmail_helmet',conditions:[{skillId:'defense',level:4},{skillId:'agility',level:2}]},
+      {id:'minecraft:copper_boots',conditions:[{skillId:'defense',level:6},{skillId:'agility',level:4}]},
+      {id:'minecraft:copper_leggings',conditions:[{skillId:'defense',level:6},{skillId:'agility',level:4}]},
+      {id:'minecraft:copper_chestplate',conditions:[{skillId:'defense',level:6},{skillId:'agility',level:4}]},
+      {id:'minecraft:copper_helmet',conditions:[{skillId:'defense',level:6},{skillId:'agility',level:4}]},
+      {id:'minecraft:iron_boots',conditions:[{skillId:'defense',level:9},{skillId:'agility',level:6}]},
+      {id:'minecraft:iron_leggings',conditions:[{skillId:'defense',level:9},{skillId:'agility',level:6}]},
+      {id:'minecraft:iron_chestplate',conditions:[{skillId:'defense',level:9},{skillId:'agility',level:6}]},
+      {id:'minecraft:iron_helmet',conditions:[{skillId:'defense',level:9},{skillId:'agility',level:6}]},
+      {id:'minecraft:golden_boots',conditions:[{skillId:'defense',level:11},{skillId:'agility',level:8}]},
+      {id:'minecraft:golden_leggings',conditions:[{skillId:'defense',level:11},{skillId:'agility',level:8}]},
+      {id:'minecraft:golden_chestplate',conditions:[{skillId:'defense',level:11},{skillId:'agility',level:8}]},
+      {id:'minecraft:golden_helmet',conditions:[{skillId:'defense',level:11},{skillId:'agility',level:8}]},
+      {id:'minecraft:turtle_helmet',conditions:[{skillId:'defense',level:16},{skillId:'agility',level:10}]},
+      {id:'minecraft:diamond_boots',conditions:[{skillId:'defense',level:20},{skillId:'agility',level:14}]},
+      {id:'minecraft:diamond_leggings',conditions:[{skillId:'defense',level:20},{skillId:'agility',level:14}]},
+      {id:'minecraft:diamond_chestplate',conditions:[{skillId:'defense',level:20},{skillId:'agility',level:14}]},
+      {id:'minecraft:diamond_helmet',conditions:[{skillId:'defense',level:20},{skillId:'agility',level:14}]},
+      {id:'minecraft:netherite_boots',conditions:[{skillId:'defense',level:28},{skillId:'agility',level:20}]},
+      {id:'minecraft:netherite_leggings',conditions:[{skillId:'defense',level:28},{skillId:'agility',level:20}]},
+      {id:'minecraft:netherite_chestplate',conditions:[{skillId:'defense',level:28},{skillId:'agility',level:20}]},
+      {id:'minecraft:netherite_helmet',conditions:[{skillId:'defense',level:28},{skillId:'agility',level:20}]},
+    ]},
+    {id:'defense_shield',lockType:'advancedItem',category:'shield',entries:[
+      {id:'minecraft:shield',conditions:[{skillId:'defense',level:12},{skillId:'agility',level:8}]},
+    ]},
+  ],
+  agility:[
+    {id:'agility_adv',lockType:'advancedItem',category:'armor',entries:[
+      {id:'minecraft:elytra',conditions:[{skillId:'agility',level:28},{skillId:'magic',level:24}]},
+    ]},
+  ],
+  magic:[
+    {id:'magic_bp',lockType:'blockPlace',entries:[
+      {id:'minecraft:beacon',skillId:'magic',level:30},
+      {id:'minecraft:black_shulker_box',skillId:'magic',level:28},
+      {id:'minecraft:blue_shulker_box',skillId:'magic',level:28},
+      {id:'minecraft:brown_shulker_box',skillId:'magic',level:28},
+      {id:'minecraft:cyan_shulker_box',skillId:'magic',level:28},
+      {id:'minecraft:gray_shulker_box',skillId:'magic',level:28},
+      {id:'minecraft:green_shulker_box',skillId:'magic',level:28},
+      {id:'minecraft:light_blue_shulker_box',skillId:'magic',level:28},
+      {id:'minecraft:light_gray_shulker_box',skillId:'magic',level:28},
+      {id:'minecraft:lime_shulker_box',skillId:'magic',level:28},
+      {id:'minecraft:magenta_shulker_box',skillId:'magic',level:28},
+      {id:'minecraft:orange_shulker_box',skillId:'magic',level:28},
+      {id:'minecraft:pink_shulker_box',skillId:'magic',level:28},
+      {id:'minecraft:purple_shulker_box',skillId:'magic',level:28},
+      {id:'minecraft:red_shulker_box',skillId:'magic',level:28},
+      {id:'minecraft:shulker_box',skillId:'magic',level:28},
+      {id:'minecraft:white_shulker_box',skillId:'magic',level:28},
+      {id:'minecraft:yellow_shulker_box',skillId:'magic',level:28},
+    ]},
+    {id:'magic_items',lockType:'item',category:'magic',entries:[
+      {id:'minecraft:ender_pearl',skillId:'magic',level:8},
+      {id:'minecraft:brewing_stand',skillId:'magic',level:10},
+      {id:'minecraft:cauldron',skillId:'magic',level:10},
+      {id:'minecraft:enchanting_table',skillId:'magic',level:10},
+      {id:'minecraft:water_cauldron',skillId:'magic',level:10},
+      {id:'minecraft:ender_chest',skillId:'magic',level:14},
+      {id:'minecraft:lava_cauldron',skillId:'magic',level:10},
+      {id:'minecraft:powder_snow_cauldron',skillId:'magic',level:10},
+      {id:'minecraft:blaze_rod',skillId:'magic',level:14},
+      {id:'minecraft:ghast_tear',skillId:'magic',level:14},
+      {id:'minecraft:recovery_compass',skillId:'magic',level:18},
+      {id:'minecraft:trial_key',skillId:'magic',level:18},
+      {id:'minecraft:lodestone',skillId:'magic',level:20},
+      {id:'minecraft:black_shulker_box',skillId:'magic',level:28},
+      {id:'minecraft:blue_shulker_box',skillId:'magic',level:28},
+      {id:'minecraft:brown_shulker_box',skillId:'magic',level:28},
+      {id:'minecraft:cyan_shulker_box',skillId:'magic',level:28},
+      {id:'minecraft:gray_shulker_box',skillId:'magic',level:28},
+      {id:'minecraft:green_shulker_box',skillId:'magic',level:28},
+      {id:'minecraft:light_blue_shulker_box',skillId:'magic',level:28},
+      {id:'minecraft:light_gray_shulker_box',skillId:'magic',level:28},
+      {id:'minecraft:lime_shulker_box',skillId:'magic',level:28},
+      {id:'minecraft:magenta_shulker_box',skillId:'magic',level:28},
+      {id:'minecraft:orange_shulker_box',skillId:'magic',level:28},
+      {id:'minecraft:pink_shulker_box',skillId:'magic',level:28},
+      {id:'minecraft:purple_shulker_box',skillId:'magic',level:28},
+      {id:'minecraft:red_shulker_box',skillId:'magic',level:28},
+      {id:'minecraft:respawn_anchor',skillId:'magic',level:16},
+      {id:'minecraft:shulker_box',skillId:'magic',level:28},
+      {id:'minecraft:white_shulker_box',skillId:'magic',level:28},
+      {id:'minecraft:yellow_shulker_box',skillId:'magic',level:28},
+      {id:'minecraft:ominous_bottle',skillId:'magic',level:24},
+      {id:'minecraft:beacon',skillId:'magic',level:30},
+      {id:'minecraft:end_crystal',skillId:'magic',level:32},
+      {id:'minecraft:ominous_trial_key',skillId:'magic',level:32},
+    ]},
+    {id:'magic_adv',lockType:'advancedItem',category:'magic',entries:[
+      {id:'minecraft:ender_eye',conditions:[{skillId:'magic',level:28},{skillId:'mining',level:20}]},
+      {id:'minecraft:conduit',conditions:[{skillId:'magic',level:24},{skillId:'gathering',level:20}]},
+      {id:'minecraft:totem_of_undying',conditions:[{skillId:'magic',level:32},{skillId:'defense',level:28}]},
+    ]},
+  ],
+};
+
+let appData = deepClone(DEFAULT_DATA);
+let activeTab = 'mining';
+let entryModalCb = null;
+let pendingGroupSection = null;
+let selectedLockType = 'item';
+
+function deepClone(o){return JSON.parse(JSON.stringify(o))}
+function ms(level){return MILESTONES[level]||''}
+function conditionsToReq(conds){return conds.map(c=>`reskillable:${c.skillId}|${c.level}`).join(' & ')}
+function reqToConditions(req){
+  return req.split(' & ').map(part=>{
+    const m=part.match(/reskillable:(\w+)\|(\d+)/);
+    return m?{skillId:m[1],level:parseInt(m[2])}:null;
+  }).filter(Boolean);
+}
+function skillPill(skillId){return`<span class="skill-pill s-${skillId}">${skillId}</span>`}
+function levelBadge(level){const m=ms(level);return`<span class="lvl">${level}</span>${m?`<span class="ms">${m}</span>`:''}`}
+function renderID(id){
+  const prefix='minecraft:';
+  if(id.startsWith(prefix)) return`<span class="ns">minecraft:</span>${id.slice(prefix.length)}`;
+  return`<span>${id}</span>`;
+}
+function skillOptions(selected='mining'){
+  return SKILLS.map(s=>`<option value="${s}"${s===selected?' selected':''}>${s}</option>`).join('');
+}
+function msOptions(selected){
+  return`<option value="">— Milestone —</option>`+
+    Object.entries(MILESTONES).map(([lvl,name])=>`<option value="${lvl}"${parseInt(lvl)===selected?' selected':''}>${name} (${lvl})</option>`).join('');
+}
+
+function render(){
+  renderTabs();
+  renderContent();
+}
+
+function renderTabs(){
+  document.getElementById('tabsBar').innerHTML=SECTIONS.map(s=>`
+    <div class="tab${activeTab===s.id?' active':''}" onclick="switchTab('${s.id}')">
+      ${SKILL_ICONS[s.id]||''} ${s.name}
+    </div>`).join('');
+}
+
+function renderContent(){
+  const groups=appData[activeTab]||[];
+  const sec=SECTIONS.find(s=>s.id===activeTab);
+  let html=groups.map((g,gi)=>renderGroup(g,gi)).join('');
+  html+=`<div style="margin-top:8px"><button class="btn" onclick="openAddGroupModal('${activeTab}')"><i class="bi bi-plus-lg"></i> Add Lock Group</button></div>`;
+  document.getElementById('mainContent').innerHTML=html;
+}
+
+function renderGroup(group,gi){
+  const isAdv=group.lockType==='advancedItem';
+  const colCount=isAdv?3:4;
+  const catBadge=group.category?`<span class="badge">${group.category}</span>`:'';
+  const rows=group.entries.length
+    ?group.entries.map((e,ei)=>renderRow(e,gi,ei,isAdv)).join('')
+    :`<tr class="empty-row"><td colspan="${colCount}">No entries — click "+ Add Entry" to add one.</td></tr>`;
+  return`
+<div class="section">
+  <div class="section-header">
+    <div class="section-title">
+      ${LOCK_LABELS[group.lockType]||group.lockType} ${catBadge}
+      <span class="entry-count">(${group.entries.length})</span>
+    </div>
+    <div style="display:flex;gap:6px">
+      <button class="btn btn-sm" onclick="addEntry(${gi})"><i class="bi bi-plus-lg"></i> Add Entry</button>
+      <button class="btn btn-sm btn-danger" onclick="deleteGroup(${gi})"><i class="bi bi-trash"></i> Remove Group</button>
+    </div>
+  </div>
+  <div class="table-wrapper">
+    <table>
+      <thead><tr>
+        <th style="min-width:220px">${LOCK_ID_LABEL[group.lockType]||'ID'}</th>
+        ${isAdv
+          ?'<th>Requirements <span style="font-weight:400;text-transform:none;letter-spacing:0">(must meet ALL)</span></th>'
+          :'<th style="min-width:110px">Skill</th><th style="min-width:90px">Level</th>'}
+        <th style="width:100px">Actions</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>
+</div>`;
+}
+
+function renderRow(entry,gi,ei,isAdv){
+  if(isAdv){
+    const chips=entry.conditions.map((c,ci)=>
+      `${ci>0?'<span class="cond-sep">AND</span>':''}<span class="cond-chip">${skillPill(c.skillId)} ${levelBadge(c.level)}</span>`
+    ).join('');
+    return`<tr>
+      <td class="id-cell">${renderID(entry.id)}</td>
+      <td><div class="cond-list">${chips}</div></td>
+      <td><button class="btn btn-xs" onclick="editEntry(${gi},${ei})"><i class="bi bi-pencil"></i></button> <button class="btn btn-xs btn-danger" onclick="deleteEntry(${gi},${ei})"><i class="bi bi-trash"></i></button></td>
+    </tr>`;
+  }else{
+    return`<tr>
+      <td class="id-cell">${renderID(entry.id)}</td>
+      <td>${skillPill(entry.skillId)}</td>
+      <td>${levelBadge(entry.level)}</td>
+      <td><button class="btn btn-xs" onclick="editEntry(${gi},${ei})"><i class="bi bi-pencil"></i></button> <button class="btn btn-xs btn-danger" onclick="deleteEntry(${gi},${ei})"><i class="bi bi-trash"></i></button></td>
+    </tr>`;
+  }
+}
+
+function switchTab(id){activeTab=id;render()}
+
+function editEntry(gi,ei){
+  const group=appData[activeTab][gi];
+  const entry=group.entries[ei];
+  const isAdv=group.lockType==='advancedItem';
+  document.getElementById('entryModalTitle').textContent='Edit Entry';
+  document.getElementById('entryModalBody').innerHTML=isAdv?buildAdvForm(deepClone(entry)):buildSimpleForm(deepClone(entry));
+  entryModalCb=(updated)=>{group.entries[ei]=updated;renderContent();showToast('Entry updated','success')};
+  document.getElementById('entryModal').classList.add('show');
+  document.getElementById('entry-id').focus();
+}
+
+function addEntry(gi){
+  const group=appData[activeTab][gi];
+  const isAdv=group.lockType==='advancedItem';
+  const blank=isAdv?{id:'minecraft:',conditions:[{skillId:'mining',level:1}]}:{id:'minecraft:',skillId:'mining',level:1};
+  document.getElementById('entryModalTitle').textContent='Add Entry';
+  document.getElementById('entryModalBody').innerHTML=isAdv?buildAdvForm(blank):buildSimpleForm(blank);
+  entryModalCb=(created)=>{group.entries.push(created);renderContent();showToast('Entry added','success')};
+  document.getElementById('entryModal').classList.add('show');
+  document.getElementById('entry-id').focus();
+}
+
+function deleteEntry(gi,ei){
+  if(!confirm('Remove this entry?'))return;
+  appData[activeTab][gi].entries.splice(ei,1);
+  renderContent();showToast('Entry removed');
+}
+
+function deleteGroup(gi){
+  if(!confirm('Remove this entire lock group?'))return;
+  appData[activeTab].splice(gi,1);
+  renderContent();showToast('Group removed');
+}
+
+function buildSimpleForm(entry){
+  return`
+<div class="form-group">
+  <label>${LOCK_ID_LABEL.item} <span class="field-hint">(e.g. minecraft:iron_sword)</span></label>
+  <input type="text" id="entry-id" value="${entry.id}" placeholder="minecraft:item_name">
+</div>
+<div class="form-row">
+  <div class="form-group">
+    <label>Skill</label>
+    <select id="entry-skill">${skillOptions(entry.skillId)}</select>
+  </div>
+  <div class="form-group">
+    <label>Level <span class="field-hint">(1–32)</span></label>
+    <div class="level-row">
+      <input type="number" id="entry-level" value="${entry.level}" min="1" max="32" oninput="syncMilestone(this.value,'entry-ms')">
+      <select id="entry-ms" onchange="document.getElementById('entry-level').value=this.value;syncMilestone(this.value,'entry-ms')">
+        ${msOptions(entry.level)}
+      </select>
+    </div>
+  </div>
+</div>`;
+}
+
+function buildAdvForm(entry){
+  const conds=entry.conditions.map((c,i)=>buildCondRow(c,i)).join('');
+  return`
+<div class="form-group">
+  <label>Item ID <span class="field-hint">(e.g. minecraft:netherite_sword)</span></label>
+  <input type="text" id="entry-id" value="${entry.id}" placeholder="minecraft:item_name">
+</div>
+<div class="form-group">
+  <label>Requirements <span class="field-hint">— player must meet ALL of these</span></label>
+  <div id="cond-container">${conds}</div>
+  <button type="button" class="btn btn-sm" style="margin-top:6px" onclick="addCondRow()"><i class="bi bi-plus-lg"></i> Add Condition</button>
+</div>`;
+}
+
+function buildCondRow(cond,i){
+  return`<div class="cond-editor-row" id="cr-${i}">
+  <span class="and-badge">${i===0?'':'AND'}</span>
+  <select class="cond-skill">${skillOptions(cond.skillId)}</select>
+  <input type="number" class="cond-level" value="${cond.level}" min="1" max="32"
+    oninput="syncMilestone(this.value,this.nextElementSibling)">
+  <select class="cond-ms" onchange="this.previousElementSibling.value=this.value;syncMilestone(this.value,this)">
+    ${msOptions(cond.level)}
+  </select>
+  <button type="button" class="btn btn-xs btn-danger" onclick="removeCondRow(this)"><i class="bi bi-x-lg"></i></button>
+</div>`;
+}
+
+function addCondRow(){
+  const c=document.getElementById('cond-container');
+  const i=c.querySelectorAll('.cond-editor-row').length;
+  c.insertAdjacentHTML('beforeend',buildCondRow({skillId:'mining',level:1},i));
+}
+
+function removeCondRow(btn){
+  const rows=document.querySelectorAll('.cond-editor-row');
+  if(rows.length<=1){showToast('Need at least one condition','error');return}
+  btn.closest('.cond-editor-row').remove();
+
+  document.querySelectorAll('.cond-editor-row').forEach((row,i)=>{
+    const badge=row.querySelector('.and-badge');
+    if(badge) badge.textContent=i===0?'':'AND';
+  });
+}
+
+function syncMilestone(val, targetOrId){
+  const sel=typeof targetOrId==='string'?document.getElementById(targetOrId):targetOrId;
+  if(!sel) return;
+  sel.value=MILESTONES[parseInt(val)]?String(val):'';
+}
+
+function saveEntryModal(){
+  const isAdv=!!document.getElementById('cond-container');
+  const id=(document.getElementById('entry-id').value||'').trim();
+  if(!id){showToast('ID is required','error');return}
+  let updated;
+  if(isAdv){
+    const rows=document.querySelectorAll('.cond-editor-row');
+    const conditions=Array.from(rows).map(row=>({
+      skillId:row.querySelector('.cond-skill').value,
+      level:parseInt(row.querySelector('.cond-level').value)||1
+    }));
+    updated={id,conditions};
+  }else{
+    updated={
+      id,
+      skillId:document.getElementById('entry-skill').value,
+      level:parseInt(document.getElementById('entry-level').value)||1
+    };
+  }
+  closeEntryModal();
+  if(entryModalCb) entryModalCb(updated);
+}
+
+function closeEntryModal(){
+  document.getElementById('entryModal').classList.remove('show');
+  entryModalCb=null;
+}
+
+function openAddGroupModal(sectionId){
+  pendingGroupSection=sectionId;
+  selectedLockType='item';
+  document.getElementById('groupCatInput').value='';
+  document.querySelectorAll('.lock-type-option').forEach(el=>{
+    el.classList.toggle('selected',el.dataset.type==='item');
+  });
+  updateGroupCatVisibility();
+  document.getElementById('groupModal').classList.add('show');
+}
+
+function selectLockType(type){
+  selectedLockType=type;
+  document.querySelectorAll('.lock-type-option').forEach(el=>{
+    el.classList.toggle('selected',el.dataset.type===type);
+  });
+  updateGroupCatVisibility();
+}
+
+function updateGroupCatVisibility(){
+  const show=selectedLockType==='item'||selectedLockType==='advancedItem';
+  document.getElementById('groupCatField').style.display=show?'':'none';
+}
+
+function confirmAddGroup(){
+  const cat=document.getElementById('groupCatInput').value.trim()||undefined;
+  const newGroup={
+    id:`${pendingGroupSection}_${selectedLockType}_${Date.now()}`,
+    lockType:selectedLockType,
+    entries:[]
+  };
+  if(cat&&(selectedLockType==='item'||selectedLockType==='advancedItem')) newGroup.category=cat;
+  if(!appData[pendingGroupSection]) appData[pendingGroupSection]=[];
+  appData[pendingGroupSection].push(newGroup);
+  closeGroupModal();
+  if(activeTab===pendingGroupSection) renderContent();
+  showToast('Lock group added','success');
+}
+
+function closeGroupModal(){
+  document.getElementById('groupModal').classList.remove('show');
+}
+
+function handleFileUpload(e){
+  const file=e.target.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const parsed=parseJSFile(ev.target.result);
+      const total=Object.values(parsed).flat().reduce((n,g)=>n+g.entries.length,0);
+      if(total===0) throw new Error('No entries found — check file format');
+      appData=parsed;
+      render();
+      showToast(`Loaded: ${total} entries across ${Object.values(parsed).flat().length} groups`,'success');
+    }catch(err){
+      showToast('Parse error: '+err.message,'error');
+      console.error(err);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value='';
+}
+
+function loadDefault(){
+  appData=deepClone(DEFAULT_DATA);
+  render();
+  showToast('Default config loaded','success');
+}
+
+function parseJSFile(content){
+  const result={};
+  const map={
+    mining:'registerMiningLocks',gathering:'registerGatheringLocks',
+    farming:'registerFarmingLocks',building:'registerBuildingLocks',
+    attack:'registerAttackLocks',defense:'registerDefenseLocks',
+    agility:'registerAgilityLocks',magic:'registerMagicLocks',trading:'registerTradingLocks',
+  };
+  for(const[sid,mname] of Object.entries(map)){
+    const body=extractMethodBody(content,mname);
+    result[sid]=body?parseMethodBody(body,sid):[];
+  }
+  return result;
+}
+
+function extractMethodBody(content,methodName){
+  const idx=content.indexOf(`static ${methodName}()`);
+  if(idx===-1) return null;
+  let depth=0,start=-1;
+  for(let i=idx;i<content.length;i++){
+    if(content[i]==='{'){if(start===-1)start=i;depth++}
+    else if(content[i]==='}'){depth--;if(depth===0)return content.slice(start+1,i)}
+  }
+  return null;
+}
+
+function parseMethodBody(body,sid){
+  const groups=[];
+  const callRe=/this\.(register\w+)\s*\(/g;
+  let m;
+  while((m=callRe.exec(body))!==null){
+    const name=m[1];
+    const openParen=m.index+m[0].length-1;
+    const args=extractCallArgs(body,openParen);
+    if(!args) continue;
+    if(['registerItemLocks','registerBlockBreakLocks','registerBlockPlaceLocks','registerEntityLocks'].includes(name)){
+      const lt=name==='registerItemLocks'?'item':name==='registerBlockBreakLocks'?'blockBreak':name==='registerBlockPlaceLocks'?'blockPlace':'entity';
+      const{arr,cat}=parseSimpleArgs(args);
+      const entries=arr.map(parseSimpleEntry).filter(Boolean);
+      const g={id:`${sid}_${lt}_${groups.length}`,lockType:lt,entries};
+      if(cat) g.category=cat;
+      groups.push(g);
+    }else if(name==='registerAdvancedItemLocks'){
+      const{arr,cat}=parseSimpleArgs(args);
+      const entries=arr.map(parseAdvEntry).filter(Boolean);
+      const g={id:`${sid}_adv_${groups.length}`,lockType:'advancedItem',entries};
+      if(cat) g.category=cat;
+      groups.push(g);
+    }
+  }
+  return groups;
+}
+
+function extractCallArgs(content,openParen){
+  let depth=0;
+  for(let i=openParen;i<content.length;i++){
+    if(content[i]==='(') depth++;
+    else if(content[i]===')'){depth--;if(depth===0) return content.slice(openParen+1,i)}
+  }
+  return null;
+}
+
+function parseSimpleArgs(args){
+  const arrStart=args.indexOf('[');
+  if(arrStart===-1) return{arr:[],cat:null};
+  const arrContent=extractBracketContent(args,arrStart);
+  if(arrContent===null) return{arr:[],cat:null};
+  const arrEnd=arrStart+arrContent.length+2;
+  const after=args.slice(arrEnd);
+  const catM=after.match(/["'](\w+)["']/);
+  return{arr:parseOuterArray(arrContent),cat:catM?catM[1]:null};
+}
+
+function extractBracketContent(content,openPos){
+  let depth=0;
+  for(let i=openPos;i<content.length;i++){
+    if(content[i]==='[') depth++;
+    else if(content[i]===']'){depth--;if(depth===0) return content.slice(openPos+1,i)}
+  }
+  return null;
+}
+
+function parseOuterArray(content){
+  const results=[];
+  let i=0;
+  while(i<content.length){
+    if(content[i]==='['){
+      const inner=extractBracketContent(content,i);
+      if(inner!==null){results.push(parseInnerArray(inner));i+=inner.length+2}
+      else i++;
+    }else i++;
+  }
+  return results;
+}
+
+function parseInnerArray(content){
+  const tokens=[];let i=0;
+  while(i<content.length){
+    const c=content[i];
+    if(c===' '||c==='\n'||c==='\r'||c==='\t'||c===','){i++;continue}
+    if(c==='"'||c==="'"){
+      let j=i+1;while(j<content.length&&content[j]!==c)j++;
+      tokens.push(content.slice(i+1,j));i=j+1;
+    }else if(c>='0'&&c<='9'){
+      let j=i;while(j<content.length&&content[j]>='0'&&content[j]<='9')j++;
+      tokens.push(parseInt(content.slice(i,j)));i=j;
+    }else i++;
+  }
+  return tokens;
+}
+
+function parseSimpleEntry(t){
+  if(t.length<3) return null;
+  const[id,skillId,level]=t;
+  if(typeof id!=='string'||typeof skillId!=='string') return null;
+  return{id:String(id),skillId:String(skillId),level:parseInt(level)||1};
+}
+
+function parseAdvEntry(t){
+  if(t.length<2) return null;
+  const[id,req]=t;
+  if(typeof id!=='string'||typeof req!=='string') return null;
+  const conditions=reqToConditions(req);
+  if(!conditions.length) return null;
+  return{id:String(id),conditions};
+}
+
+function exportJS(){
+  const js=generateJS();
+  const blob=new Blob([js],{type:'text/javascript'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='DefaultLocks.js';a.click();
+  URL.revokeObjectURL(url);
+  showToast('DefaultLocks.js exported!','success');
+}
+
+function generateJS(){
+  const order=['mining','gathering','farming','building','attack','defense','agility','magic','trading'];
+  const methods=order.map(sid=>{
+    const mname=`register${sid.charAt(0).toUpperCase()+sid.slice(1)}Locks`;
+    const groups=appData[sid]||[];
+    const body=groups.map(genGroupCall).join('\n');
+    return`  static ${mname}() {\n${body||'    // empty'}\n  }`;
+  }).join('\n');
+
+  return`import { LOCKS } from "./LockManager.js";
+export class DefaultLocks {
+  static MIN_LEVEL = 1;
+  static MAX_LEVEL = 32;
+  static MILESTONES = Object.freeze({
+    STARTER: 1,
+    NOVICE: 4,
+    APPRENTICE: 6,
+    JOURNEYMAN: 9,
+    ADEPT: 11,
+    SPECIALIST: 16,
+    EXPERT: 20,
+    MASTER: 24,
+    GRANDMASTER: 28,
+    LEGEND: 32,
+  });
+  static resolveLevel(level) {
+    if (typeof level === "string") {
+      const key = level.trim().toUpperCase();
+      if (Object.prototype.hasOwnProperty.call(this.MILESTONES, key)) {
+        return this.MILESTONES[key];
+      }
+    }
+    return Math.trunc(Number(level) || this.MIN_LEVEL);
+  }
+  static sortRows(rows) {
+    return [...rows].sort((a, b) => {
+      const levelDiff = this.resolveLevel(a[2]) - this.resolveLevel(b[2]);
+      if (levelDiff !== 0) {
+        return levelDiff;
+      }
+      return String(a[0]).localeCompare(String(b[0]));
+    });
+  }
+  static req(skillId, level) {
+    const resolved = this.resolveLevel(level);
+    const normalized = Math.max(
+      this.MIN_LEVEL,
+      Math.min(this.MAX_LEVEL, resolved),
+    );
+    return \`reskillable:\${skillId}|\${normalized}\`;
+  }
+  static registerItemLocks(rows, category) {
+    for (const [itemId, skillId, level] of this.sortRows(rows)) {
+      LOCKS.registerItemLock(itemId, this.req(skillId, level), category);
+    }
+  }
+  static registerBlockBreakLocks(rows) {
+    for (const [blockId, skillId, level] of this.sortRows(rows)) {
+      LOCKS.registerBlockBreakLock(blockId, this.req(skillId, level));
+    }
+  }
+  static registerBlockPlaceLocks(rows) {
+    for (const [blockId, skillId, level] of this.sortRows(rows)) {
+      LOCKS.registerBlockPlaceLock(blockId, this.req(skillId, level));
+    }
+  }
+  static registerEntityLocks(rows) {
+    for (const [entityId, skillId, level] of this.sortRows(rows)) {
+      LOCKS.registerEntityLock(entityId, this.req(skillId, level));
+    }
+  }
+  static registerAdvancedItemLocks(entries, category) {
+    for (const [itemId, requirement] of entries) {
+      LOCKS.registerItemLock(itemId, requirement, category);
+    }
+  }
+  static register() {
+    this.registerMiningLocks();
+    this.registerGatheringLocks();
+    this.registerFarmingLocks();
+    this.registerBuildingLocks();
+    this.registerAttackLocks();
+    this.registerDefenseLocks();
+    this.registerAgilityLocks();
+    this.registerMagicLocks();
+    this.registerTradingLocks();
+  }
+${methods}
+}`;
+}
+
+function genGroupCall(group){
+  const I='    ',II='      ';
+  if(group.lockType==='item'){
+    const rows=group.entries.map(e=>`${II}["${e.id}", "${e.skillId}", ${e.level}],`).join('\n');
+    const cat=group.category?`,\n${I}"${group.category}"`:',';
+    return`${I}this.registerItemLocks(\n${I}[\n${rows||II+'// empty'}\n${I}]${cat}\n${I});`;
+  }else if(group.lockType==='blockBreak'){
+    const rows=group.entries.map(e=>`${II}["${e.id}", "${e.skillId}", ${e.level}],`).join('\n');
+    return`${I}this.registerBlockBreakLocks([\n${rows||II+'// empty'}\n${I}]);`;
+  }else if(group.lockType==='blockPlace'){
+    const rows=group.entries.map(e=>`${II}["${e.id}", "${e.skillId}", ${e.level}],`).join('\n');
+    return`${I}this.registerBlockPlaceLocks([\n${rows||II+'// empty'}\n${I}]);`;
+  }else if(group.lockType==='entity'){
+    const rows=group.entries.map(e=>`${II}["${e.id}", "${e.skillId}", ${e.level}],`).join('\n');
+    return`${I}this.registerEntityLocks([\n${rows||II+'// empty'}\n${I}]);`;
+  }else if(group.lockType==='advancedItem'){
+    const rows=group.entries.map(e=>`${II}["${e.id}", "${conditionsToReq(e.conditions)}"],`).join('\n');
+    const cat=group.category?`,\n${I}"${group.category}"`:',';
+    return`${I}this.registerAdvancedItemLocks(\n${I}[\n${rows||II+'// empty'}\n${I}]${cat}\n${I});`;
+  }
+  return '';
+}
+
+let _toastTimer;
+function showToast(msg,type=''){
+  clearTimeout(_toastTimer);
+  const old=document.getElementById('_toast');
+  if(old) old.remove();
+  const t=document.createElement('div');
+  t.id='_toast';t.className='toast '+(type||'');t.textContent=msg;
+  document.body.appendChild(t);
+  _toastTimer=setTimeout(()=>t.remove(),2600);
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    closeEntryModal();closeGroupModal();
+  }
+  if((e.key==='Enter')&&document.getElementById('entryModal').classList.contains('show')&&e.ctrlKey){
+    saveEntryModal();
+  }
+});
+
+loadDefault();
+</script>
+</body>
+</html>
