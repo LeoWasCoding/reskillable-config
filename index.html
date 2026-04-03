@@ -1095,9 +1095,13 @@ function initPresence(){
       document.getElementById('onlineDot').className='online-dot';
     });
 
+    document.addEventListener('visibilitychange',()=>{
+      if(document.visibilityState==='visible') ref.update({lastSeen:TS()});
+    });
+
     const cleanup=()=>{clearInterval(heartbeat);ref.delete()};
     window.addEventListener('beforeunload',cleanup);
-    window.addEventListener('pagehide',cleanup);
+    window.addEventListener('pagehide',e=>{if(!e.persisted) cleanup()});
   }catch(e){
     console.warn('Firebase presence error:',e.message);
   }
