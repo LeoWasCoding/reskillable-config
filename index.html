@@ -702,8 +702,9 @@ function saveEntryModal(){
       level:parseInt(document.getElementById('entry-level').value)||1
     };
   }
+  const cb=entryModalCb;
   closeEntryModal();
-  if(entryModalCb) entryModalCb(updated);
+  if(cb) cb(updated);
 }
 
 function closeEntryModal(){
