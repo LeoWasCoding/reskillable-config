@@ -1214,6 +1214,8 @@ function initFirebase(){
       _currentUser=user;
       renderCommunityAuthBar();
     });
+    // load a shared config from URL if present (wait one tick for _db to be set)
+    setTimeout(loadConfigFromUrl,0);
   }catch(e){console.warn('Firebase init error:',e.message);}
 }
 
@@ -1286,6 +1288,7 @@ function loadCommunityConfigs(){
             <div class="community-item-name">${escHtml(d.name)}</div>
             <div class="community-item-meta">by ${escHtml(d.authorName)} · ${dateStr}</div>
           </div>
+          <button class="btn btn-sm" onclick="copyCommunityLink('${doc.id}')" title="Copy shareable link"><i class="bi bi-link-45deg"></i></button>
           <button class="btn btn-sm btn-primary" onclick="useCommunityConfig('${doc.id}')"><i class="bi bi-download"></i> Use</button>
           ${deleteBtn}
         </div>`;
@@ -1340,6 +1343,34 @@ async function deleteCommunityConfig(docId){
     showToast('Config deleted','success');
   }catch(e){
     showToast('Delete failed: '+e.message,'error');
+  }
+}
+
+function copyCommunityLink(docId){
+  const url=`${location.origin}${location.pathname}?config=${docId}`;
+  navigator.clipboard.writeText(url).then(()=>showToast('Link copied!','success'))
+    .catch(()=>{
+      // fallback for browsers that block clipboard without HTTPS
+      prompt('Copy this link:',url);
+    });
+}
+
+async function loadConfigFromUrl(){
+  const id=new URLSearchParams(location.search).get('config');
+  if(!id||!_db) return;
+  try{
+    const snap=await _db.collection('community_configs').doc(id).get();
+    if(!snap.exists){showToast('Shared config not found','error');return;}
+    const parsed=parseJSFile(snap.data().config);
+    const total=Object.values(parsed).flat().reduce((n,g)=>n+g.entries.length,0);
+    if(total===0) throw new Error('No entries found');
+    appData=parsed;
+    render();
+    showToast(`Loaded shared config: "${escHtml(snap.data().name)}"  —  ${total} entries`,'success');
+    // clean up the URL so sharing again produces a fresh link
+    history.replaceState(null,'',location.pathname);
+  }catch(e){
+    showToast('Failed to load shared config: '+e.message,'error');
   }
 }
 
