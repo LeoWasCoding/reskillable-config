@@ -126,21 +126,37 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
   .header-title{font-size:14px}
   .tabs .tab{padding:9px 10px;font-size:12px}
 }
-.online-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid var(--border);background:var(--surface2);font-size:12px;color:var(--muted);white-space:nowrap}
-.online-dot{width:8px;height:8px;background:var(--success);flex-shrink:0;animation:blink 2s infinite}
-.online-dot.offline{background:var(--muted);animation:none}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+.community-modal{max-width:680px}
+.community-auth-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 16px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:13px;flex-wrap:wrap}
+.community-auth-bar .user-info{display:flex;align-items:center;gap:8px}
+.community-auth-bar img{width:24px;height:24px;border-radius:50%}
+.community-share-bar{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.community-share-bar input{flex:1;min-width:180px}
+.community-list{padding:0}
+.community-item{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.community-item:last-child{border-bottom:none}
+.community-item-info{flex:1;min-width:0}
+.community-item-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.community-item-meta{font-size:11px;color:var(--muted);margin-top:2px}
+.community-empty{padding:32px 16px;text-align:center;color:var(--muted);font-size:13px}
+.community-loading{padding:24px 16px;text-align:center;color:var(--muted);font-size:13px}
+.btn-google{background:#fff;color:#222;border-color:#ccc;font-weight:600}
+.btn-google:hover{background:#f5f5f5}
+.btn-google img{width:16px;height:16px}
+.delete-btn{color:var(--danger);border-color:var(--danger);background:transparent}
+.delete-btn:hover{background:rgba(224,82,82,.12)}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
 
 <header class="header">
   <div class="header-title"><i class="bi bi-gear-fill"></i> Reskillable Config Editor</div>
-  <div class="online-badge"><span class="online-dot offline" id="onlineDot"></span><span id="onlineCount">—</span> online</div>
-  <div class="header-actions">
+<div class="header-actions">
     <button class="btn" onclick="loadDefault()"><i class="bi bi-arrow-counterclockwise"></i> Default</button>
     <label for="fileInput" class="btn" style="cursor:pointer"><i class="bi bi-upload"></i> Upload JS</label>
     <input type="file" id="fileInput" accept=".js" style="display:none" onchange="handleFileUpload(event)">
@@ -148,6 +164,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
     <input type="file" id="mcaddonInput" accept=".mcaddon" style="display:none" onchange="handleMcaddonUpload(event)">
     <button class="btn btn-primary" onclick="exportJS()"><i class="bi bi-download"></i> Export JS</button>
     <button class="btn btn-success" id="exportMcaddonBtn" onclick="exportMcaddon()" style="display:none"><i class="bi bi-box-arrow-up"></i> Export MCADDON</button>
+    <button class="btn" onclick="openCommunityModal()"><i class="bi bi-people-fill"></i> Community</button>
   </div>
 </header>
 
@@ -208,6 +225,28 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
   </div>
 </div>
 
+<div class="modal-overlay" id="communityModal" onclick="if(event.target===this)closeCommunityModal()">
+  <div class="modal community-modal">
+    <div class="modal-header">
+      <span><i class="bi bi-people-fill"></i> Community Configs</span>
+      <button class="modal-close" onclick="closeCommunityModal()"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div id="communityAuthBar" class="community-auth-bar">
+      <span style="color:var(--muted);font-size:12px">Sign in to share your config with the community</span>
+      <button class="btn btn-google btn-sm" onclick="communityLogin()">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt=""> Sign in with Google
+      </button>
+    </div>
+    <div id="communityShareBar" class="community-share-bar" style="display:none">
+      <input type="text" id="communityConfigName" placeholder="Give your config a name…" maxlength="60">
+      <button class="btn btn-primary btn-sm" onclick="shareCommunityConfig()"><i class="bi bi-cloud-upload"></i> Share</button>
+    </div>
+    <div id="communityList" class="community-list">
+      <div class="community-loading">Loading configs…</div>
+    </div>
+  </div>
+</div>
+
 <script>
 
 const FIREBASE_CONFIG = {
@@ -217,7 +256,6 @@ const FIREBASE_CONFIG = {
   storageBucket:     "reskillable-config.firebasestorage.app",
   messagingSenderId: "1072685659428",
   appId:             "1:1072685659428:web:b83087ea8c6304fe876fb1",
-  measurementId:     "G-WG2XDC1DS8",
 };
 
 const SKILLS = ['mining','gathering','farming','building','attack','defense','agility','magic'];
@@ -1156,52 +1194,192 @@ function showToast(msg,type=''){
 
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
-    closeEntryModal();closeGroupModal();
+    closeEntryModal();closeGroupModal();closeCommunityModal();
   }
   if((e.key==='Enter')&&document.getElementById('entryModal').classList.contains('show')&&e.ctrlKey){
     saveEntryModal();
   }
 });
 
-function initPresence(){
+// ── Firebase / Community ──────────────────────────────────────────────────────
+
+let _db=null,_auth=null,_currentUser=null,_communityUnsub=null;
+
+function initFirebase(){
   try{
-    if(FIREBASE_CONFIG.apiKey.startsWith('REPLACE')) return;
     const app=firebase.apps.length?firebase.app():firebase.initializeApp(FIREBASE_CONFIG);
-    const db=firebase.firestore();
-    const col=db.collection('presence');
-    const sessionId=Math.random().toString(36).slice(2)+Date.now();
-    const ref=col.doc(sessionId);
-    const TS=firebase.firestore.FieldValue.serverTimestamp;
-
-    ref.set({lastSeen:TS()})
-      .then(()=>console.log('[presence] session registered:',sessionId))
-      .catch(e=>console.error('[presence] write failed:',e.message));
-
-    const heartbeat=setInterval(()=>ref.update({lastSeen:TS()}),30000);
-
-    col.onSnapshot(
-      snap=>{
-        console.log('[presence] count:',snap.size, snap.docs.map(d=>d.id));
-        document.getElementById('onlineCount').textContent=snap.size;
-        document.getElementById('onlineDot').className='online-dot';
-      },
-      err=>console.error('[presence] snapshot failed:',err.message)
-    );
-
-    document.addEventListener('visibilitychange',()=>{
-      if(document.visibilityState==='visible') ref.update({lastSeen:TS()});
+    _db=firebase.firestore();
+    _auth=firebase.auth();
+    _auth.onAuthStateChanged(user=>{
+      _currentUser=user;
+      renderCommunityAuthBar();
     });
+    // load a shared config from URL if present (wait one tick for _db to be set)
+    setTimeout(loadConfigFromUrl,0);
+  }catch(e){console.warn('Firebase init error:',e.message);}
+}
 
-    const cleanup=()=>{clearInterval(heartbeat);ref.delete()};
-    window.addEventListener('beforeunload',cleanup);
-    window.addEventListener('pagehide',e=>{if(!e.persisted) cleanup()});
-  }catch(e){
-    console.warn('Firebase presence error:',e.message);
+function renderCommunityAuthBar(){
+  const bar=document.getElementById('communityAuthBar');
+  const shareBar=document.getElementById('communityShareBar');
+  if(_currentUser){
+    const avatar=_currentUser.photoURL?`<img src="${_currentUser.photoURL}" alt="">`:
+      `<i class="bi bi-person-circle" style="font-size:20px"></i>`;
+    bar.innerHTML=`<span class="user-info">${avatar}<span>${escHtml(_currentUser.displayName||_currentUser.email)}</span></span>
+      <button class="btn btn-sm" onclick="communityLogout()"><i class="bi bi-box-arrow-right"></i> Sign out</button>`;
+    shareBar.style.display='';
+  }else{
+    bar.innerHTML=`<span style="color:var(--muted);font-size:12px">Sign in to share your config with the community</span>
+      <button class="btn btn-google btn-sm" onclick="communityLogin()">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt=""> Sign in with Google
+      </button>`;
+    shareBar.style.display='none';
   }
 }
 
+function communityLogin(){
+  if(!_auth) return;
+  const provider=new firebase.auth.GoogleAuthProvider();
+  _auth.signInWithPopup(provider).catch(e=>showToast('Sign-in failed: '+e.message,'error'));
+}
+
+function communityLogout(){
+  if(!_auth) return;
+  _auth.signOut();
+}
+
+function openCommunityModal(){
+  document.getElementById('communityModal').classList.add('show');
+  loadCommunityConfigs();
+}
+
+function closeCommunityModal(){
+  document.getElementById('communityModal').classList.remove('show');
+  if(_communityUnsub){_communityUnsub();_communityUnsub=null;}
+}
+
+function loadCommunityConfigs(){
+  if(!_db){
+    document.getElementById('communityList').innerHTML=
+      `<div class="community-empty">Firebase unavailable.</div>`;
+    return;
+  }
+  document.getElementById('communityList').innerHTML=
+    `<div class="community-loading"><i class="bi bi-hourglass-split"></i> Loading configs…</div>`;
+  if(_communityUnsub) _communityUnsub();
+  _communityUnsub=_db.collection('community_configs')
+    .orderBy('createdAt','desc')
+    .limit(50)
+    .onSnapshot(snap=>{
+      if(snap.empty){
+        document.getElementById('communityList').innerHTML=
+          `<div class="community-empty">No community configs yet. Be the first to share one!</div>`;
+        return;
+      }
+      const html=snap.docs.map(doc=>{
+        const d=doc.data();
+        const date=d.createdAt?.toDate?d.createdAt.toDate():new Date();
+        const dateStr=date.toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'});
+        const isOwn=_currentUser&&_currentUser.uid===d.authorUid;
+        const deleteBtn=isOwn?
+          `<button class="btn btn-xs delete-btn" onclick="deleteCommunityConfig('${doc.id}')"><i class="bi bi-trash3"></i></button>`:'';
+        return`<div class="community-item">
+          <div class="community-item-info">
+            <div class="community-item-name">${escHtml(d.name)}</div>
+            <div class="community-item-meta">by ${escHtml(d.authorName)} · ${dateStr}</div>
+          </div>
+          <button class="btn btn-sm" onclick="copyCommunityLink('${doc.id}')" title="Copy shareable link"><i class="bi bi-link-45deg"></i></button>
+          <button class="btn btn-sm btn-primary" onclick="useCommunityConfig('${doc.id}')"><i class="bi bi-download"></i> Use</button>
+          ${deleteBtn}
+        </div>`;
+      }).join('');
+      document.getElementById('communityList').innerHTML=html;
+    },err=>{
+      document.getElementById('communityList').innerHTML=
+        `<div class="community-empty">Failed to load: ${escHtml(err.message)}</div>`;
+    });
+}
+
+async function shareCommunityConfig(){
+  if(!_currentUser){showToast('Sign in first','error');return;}
+  const name=document.getElementById('communityConfigName').value.trim();
+  if(!name){showToast('Give your config a name','error');return;}
+  try{
+    await _db.collection('community_configs').add({
+      name,
+      authorName: _currentUser.displayName||_currentUser.email||'Anonymous',
+      authorUid:  _currentUser.uid,
+      createdAt:  firebase.firestore.FieldValue.serverTimestamp(),
+      config:     generateJS(),
+    });
+    document.getElementById('communityConfigName').value='';
+    showToast('Config shared!','success');
+  }catch(e){
+    showToast('Share failed: '+e.message,'error');
+  }
+}
+
+async function useCommunityConfig(docId){
+  try{
+    const snap=await _db.collection('community_configs').doc(docId).get();
+    if(!snap.exists){showToast('Config not found','error');return;}
+    const parsed=parseJSFile(snap.data().config);
+    const total=Object.values(parsed).flat().reduce((n,g)=>n+g.entries.length,0);
+    if(total===0) throw new Error('No entries found');
+    appData=parsed;
+    render();
+    closeCommunityModal();
+    showToast(`Loaded "${escHtml(snap.data().name)}" — ${total} entries`,'success');
+  }catch(e){
+    showToast('Load failed: '+e.message,'error');
+  }
+}
+
+async function deleteCommunityConfig(docId){
+  if(!_currentUser) return;
+  if(!confirm('Delete this config?')) return;
+  try{
+    await _db.collection('community_configs').doc(docId).delete();
+    showToast('Config deleted','success');
+  }catch(e){
+    showToast('Delete failed: '+e.message,'error');
+  }
+}
+
+function copyCommunityLink(docId){
+  const url=`${location.origin}${location.pathname}?config=${docId}`;
+  navigator.clipboard.writeText(url).then(()=>showToast('Link copied!','success'))
+    .catch(()=>{
+      // fallback for browsers that block clipboard without HTTPS
+      prompt('Copy this link:',url);
+    });
+}
+
+async function loadConfigFromUrl(){
+  const id=new URLSearchParams(location.search).get('config');
+  if(!id||!_db) return;
+  try{
+    const snap=await _db.collection('community_configs').doc(id).get();
+    if(!snap.exists){showToast('Shared config not found','error');return;}
+    const parsed=parseJSFile(snap.data().config);
+    const total=Object.values(parsed).flat().reduce((n,g)=>n+g.entries.length,0);
+    if(total===0) throw new Error('No entries found');
+    appData=parsed;
+    render();
+    showToast(`Loaded shared config: "${escHtml(snap.data().name)}"  —  ${total} entries`,'success');
+    // clean up the URL so sharing again produces a fresh link
+    history.replaceState(null,'',location.pathname);
+  }catch(e){
+    showToast('Failed to load shared config: '+e.message,'error');
+  }
+}
+
+function escHtml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 loadDefault();
-initPresence();
+initFirebase();
 </script>
 </body>
 </html>
