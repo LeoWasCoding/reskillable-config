@@ -126,21 +126,14 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
   .header-title{font-size:14px}
   .tabs .tab{padding:9px 10px;font-size:12px}
 }
-.online-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid var(--border);background:var(--surface2);font-size:12px;color:var(--muted);white-space:nowrap}
-.online-dot{width:8px;height:8px;background:var(--success);flex-shrink:0;animation:blink 2s infinite}
-.online-dot.offline{background:var(--muted);animation:none}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
 </style>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
 
 <header class="header">
   <div class="header-title"><i class="bi bi-gear-fill"></i> Reskillable Config Editor</div>
-  <div class="online-badge"><span class="online-dot offline" id="onlineDot"></span><span id="onlineCount">—</span> online</div>
-  <div class="header-actions">
+<div class="header-actions">
     <button class="btn" onclick="loadDefault()"><i class="bi bi-arrow-counterclockwise"></i> Default</button>
     <label for="fileInput" class="btn" style="cursor:pointer"><i class="bi bi-upload"></i> Upload JS</label>
     <input type="file" id="fileInput" accept=".js" style="display:none" onchange="handleFileUpload(event)">
@@ -209,16 +202,6 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 </div>
 
 <script>
-
-const FIREBASE_CONFIG = {
-  apiKey:            "AIzaSyB6uGxFRJ4--p5dW3WHXi5sXDKMhMXCA8M",
-  authDomain:        "reskillable-config.firebaseapp.com",
-  projectId:         "reskillable-config",
-  storageBucket:     "reskillable-config.firebasestorage.app",
-  messagingSenderId: "1072685659428",
-  appId:             "1:1072685659428:web:b83087ea8c6304fe876fb1",
-  measurementId:     "G-WG2XDC1DS8",
-};
 
 const SKILLS = ['mining','gathering','farming','building','attack','defense','agility','magic'];
 const MILESTONES = {1:'STARTER',4:'NOVICE',6:'APPRENTICE',9:'JOURNEYMAN',11:'ADEPT',16:'SPECIALIST',20:'EXPERT',24:'MASTER',28:'GRANDMASTER',32:'LEGEND'};
@@ -1163,45 +1146,7 @@ document.addEventListener('keydown',e=>{
   }
 });
 
-function initPresence(){
-  try{
-    if(FIREBASE_CONFIG.apiKey.startsWith('REPLACE')) return;
-    const app=firebase.apps.length?firebase.app():firebase.initializeApp(FIREBASE_CONFIG);
-    const db=firebase.firestore();
-    const col=db.collection('presence');
-    const sessionId=Math.random().toString(36).slice(2)+Date.now();
-    const ref=col.doc(sessionId);
-    const TS=firebase.firestore.FieldValue.serverTimestamp;
-
-    ref.set({lastSeen:TS()})
-      .then(()=>console.log('[presence] session registered:',sessionId))
-      .catch(e=>console.error('[presence] write failed:',e.message));
-
-    const heartbeat=setInterval(()=>ref.update({lastSeen:TS()}),30000);
-
-    col.onSnapshot(
-      snap=>{
-        console.log('[presence] count:',snap.size, snap.docs.map(d=>d.id));
-        document.getElementById('onlineCount').textContent=snap.size;
-        document.getElementById('onlineDot').className='online-dot';
-      },
-      err=>console.error('[presence] snapshot failed:',err.message)
-    );
-
-    document.addEventListener('visibilitychange',()=>{
-      if(document.visibilityState==='visible') ref.update({lastSeen:TS()});
-    });
-
-    const cleanup=()=>{clearInterval(heartbeat);ref.delete()};
-    window.addEventListener('beforeunload',cleanup);
-    window.addEventListener('pagehide',e=>{if(!e.persisted) cleanup()});
-  }catch(e){
-    console.warn('Firebase presence error:',e.message);
-  }
-}
-
 loadDefault();
-initPresence();
 </script>
 </body>
 </html>
