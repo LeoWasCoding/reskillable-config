@@ -133,6 +133,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
 
@@ -143,7 +144,10 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
     <button class="btn" onclick="loadDefault()"><i class="bi bi-arrow-counterclockwise"></i> Default</button>
     <label for="fileInput" class="btn" style="cursor:pointer"><i class="bi bi-upload"></i> Upload JS</label>
     <input type="file" id="fileInput" accept=".js" style="display:none" onchange="handleFileUpload(event)">
+    <label for="mcaddonInput" class="btn" style="cursor:pointer"><i class="bi bi-archive-fill"></i> Upload MCADDON</label>
+    <input type="file" id="mcaddonInput" accept=".mcaddon" style="display:none" onchange="handleMcaddonUpload(event)">
     <button class="btn btn-primary" onclick="exportJS()"><i class="bi bi-download"></i> Export JS</button>
+    <button class="btn btn-success" id="exportMcaddonBtn" onclick="exportMcaddon()" style="display:none"><i class="bi bi-box-arrow-up"></i> Export MCADDON</button>
   </div>
 </header>
 
@@ -791,6 +795,95 @@ function handleFileUpload(e){
   };
   reader.readAsText(file);
   e.target.value='';
+}
+
+let _mcaddonZip=null,_mcaddonFilename='',_mcaddonInfo=null;
+
+async function handleMcaddonUpload(e){
+  const file=e.target.files[0];
+  if(!file) return;
+  e.target.value='';
+  try{
+    const zip=await JSZip.loadAsync(file);
+
+    // Collect all manifest.json paths
+    const manifestEntries=[];
+    zip.forEach((path,entry)=>{
+      if(!entry.dir&&path.split('/').pop()==='manifest.json') manifestEntries.push({path,entry});
+    });
+    if(manifestEntries.length===0){showToast('No manifest.json found in .mcaddon','error');return;}
+
+    // Prefer the behavior pack manifest (has a module of type data or script)
+    let bpManifest=null,bpFolder='';
+    for(const mf of manifestEntries){
+      let parsed;
+      try{parsed=JSON.parse(await mf.entry.async('string'));}catch{continue;}
+      const mods=parsed.modules||[];
+      if(mods.some(m=>m.type==='data'||m.type==='script')){
+        bpManifest=parsed;
+        bpFolder=mf.path.includes('/')?mf.path.split('/').slice(0,-1).join('/'):'';
+        break;
+      }
+    }
+    // Fall back to first manifest if no BP found
+    if(!bpManifest){
+      bpManifest=JSON.parse(await manifestEntries[0].entry.async('string'));
+      bpFolder=manifestEntries[0].path.includes('/')?manifestEntries[0].path.split('/').slice(0,-1).join('/'):'';
+    }
+
+    const addonName=bpManifest.header?.name||file.name.replace(/\.mcaddon$/i,'');
+    const ver=bpManifest.header?.version;
+    const versionStr=Array.isArray(ver)?ver.join('.'):String(ver??'?');
+
+    // Find DefaultLocks.js anywhere in the zip
+    let defaultLocksPath=null;
+    zip.forEach((path,entry)=>{
+      if(!entry.dir&&path.split('/').pop()==='DefaultLocks.js') defaultLocksPath=path;
+    });
+
+    _mcaddonZip=zip;
+    _mcaddonFilename=file.name;
+
+    if(!defaultLocksPath){
+      // DefaultLocks.js missing — store a fallback path for export but don't load config
+      const fallback=bpFolder?`${bpFolder}/scripts/DefaultLocks.js`:'scripts/DefaultLocks.js';
+      _mcaddonInfo={name:addonName,version:versionStr,defaultLocksPath:fallback,missing:true};
+      document.getElementById('exportMcaddonBtn').style.display='';
+      showToast(`${addonName} v${versionStr} — DefaultLocks.js not found in this pack. You can still export after configuring.`,'error');
+      return;
+    }
+
+    // Parse DefaultLocks.js
+    const jsContent=await zip.file(defaultLocksPath).async('string');
+    const parsed=parseJSFile(jsContent);
+    const total=Object.values(parsed).flat().reduce((n,g)=>n+g.entries.length,0);
+    if(total===0) throw new Error('No entries found in DefaultLocks.js');
+    appData=parsed;
+    render();
+
+    _mcaddonInfo={name:addonName,version:versionStr,defaultLocksPath,missing:false};
+    document.getElementById('exportMcaddonBtn').style.display='';
+    showToast(`Loaded: ${addonName} v${versionStr} — ${total} entries across ${Object.values(parsed).flat().length} groups`,'success');
+  }catch(err){
+    showToast('MCADDON error: '+err.message,'error');
+    console.error(err);
+  }
+}
+
+async function exportMcaddon(){
+  if(!_mcaddonZip||!_mcaddonInfo){showToast('No MCADDON loaded','error');return;}
+  try{
+    _mcaddonZip.file(_mcaddonInfo.defaultLocksPath,generateJS());
+    const blob=await _mcaddonZip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download=_mcaddonFilename;a.click();
+    URL.revokeObjectURL(url);
+    showToast(`${_mcaddonFilename} exported!`,'success');
+  }catch(err){
+    showToast('Export error: '+err.message,'error');
+    console.error(err);
+  }
 }
 
 function loadDefault(){
